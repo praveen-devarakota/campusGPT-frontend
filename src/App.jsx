@@ -1,408 +1,593 @@
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 
-/* ─────────────────────────────────────────
-   DESIGN TOKENS
-───────────────────────────────────────── */
-const T = {
-  bg:        "#07090f",
-  surface:   "#0e1219",
-  surfaceHi: "#141b26",
-  border:    "rgba(255,255,255,0.07)",
-  borderHi:  "rgba(110,231,183,0.28)",
-  accent:    "#6ee7b7",
-  accentDim: "rgba(110,231,183,0.12)",
-  blue:      "#3b82f6",
-  textPri:   "#f1f5f9",
-  textSec:   "#8b9bb4",
-  textMut:   "#3d4f68",
-  mono:      "'IBM Plex Mono', monospace",
-  sans:      "'Sora', sans-serif",
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS  — Luxury Editorial Dark
+═══════════════════════════════════════════ */
+const C = {
+  bg:         "#080a0e",
+  panel:      "#0c0f16",
+  glass:      "rgba(255,255,255,0.032)",
+  glassHi:    "rgba(255,255,255,0.06)",
+  border:     "rgba(255,255,255,0.06)",
+  borderHi:   "rgba(214,165,93,0.35)",
+  gold:       "#d6a55d",
+  goldDim:    "rgba(214,165,93,0.12)",
+  goldGlow:   "rgba(214,165,93,0.22)",
+  userBubble: "rgba(20,28,48,0.95)",
+  userBorder: "rgba(59,100,200,0.3)",
+  botBubble:  "rgba(255,255,255,0.034)",
+  text1:      "#eceef2",
+  text2:      "#7f8fa6",
+  text3:      "#3a4455",
+  serif:      "'Fraunces', serif",
+  sans:       "'DM Sans', sans-serif",
+  mono:       "'JetBrains Mono', monospace",
 };
 
-/* ─────────────────────────────────────────
-   GLOBAL STYLES
-───────────────────────────────────────── */
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+/* ═══════════════════════════════════════════
+   GLOBAL CSS
+═══════════════════════════════════════════ */
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,300&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: ${T.bg}; font-family: ${T.sans}; -webkit-font-smoothing: antialiased; }
 
-  ::-webkit-scrollbar { width: 3px; }
+  html, body {
+    height: 100%;
+    background: ${C.bg};
+    font-family: ${C.sans};
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    color: ${C.text1};
+  }
+
+  ::-webkit-scrollbar { width: 2px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: ${T.textMut}; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb { background: ${C.text3}; border-radius: 2px; }
 
   textarea {
-    font-family: ${T.sans}; font-size: 14px; color: ${T.textPri};
-    background: transparent; border: none; outline: none;
-    resize: none; width: 100%; line-height: 1.65; max-height: 130px; overflow-y: auto;
+    font-family: ${C.sans};
+    font-size: 14px;
+    font-weight: 400;
+    color: ${C.text1};
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    width: 100%;
+    line-height: 1.7;
+    max-height: 140px;
+    overflow-y: auto;
+    letter-spacing: 0.01em;
   }
-  textarea::placeholder { color: ${T.textMut}; }
+  textarea::placeholder { color: ${C.text3}; font-weight: 300; }
 
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
+  /* ── Animations ── */
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
   }
-  @keyframes blink {
-    0%, 100% { opacity: 0.2; transform: scaleY(0.6); }
-    50%       { opacity: 1;   transform: scaleY(1); }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.25; transform: scale(0.7); }
+    50%       { opacity: 1;   transform: scale(1); }
+  }
+  @keyframes glow-ring {
+    0%, 100% { box-shadow: 0 0 0 0 ${C.goldGlow}, 0 20px 60px rgba(0,0,0,0.5); }
+    50%       { box-shadow: 0 0 0 6px transparent, 0 20px 60px rgba(0,0,0,0.5); }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to   { background-position:  200% 0; }
   }
 
-  .msg { animation: fadeUp 0.28s cubic-bezier(.22,1,.36,1) both; }
+  .msg-in  { animation: rise 0.32s cubic-bezier(0.16,1,0.3,1) both; }
+  .msg-in-delay { animation: rise 0.32s cubic-bezier(0.16,1,0.3,1) 0.06s both; }
 
-  .chip-link {
+  /* ── Chip ── */
+  .chip {
     display: inline-flex; align-items: center; gap: 5px;
-    background: ${T.accentDim}; border: 1px solid ${T.borderHi};
-    color: ${T.accent}; padding: 3px 11px; border-radius: 999px;
-    font-size: 11.5px; font-family: ${T.mono}; text-decoration: none;
-    transition: background 0.18s, border-color 0.18s; letter-spacing: 0.02em;
+    background: ${C.goldDim}; border: 1px solid ${C.borderHi};
+    color: ${C.gold}; padding: 3px 11px; border-radius: 999px;
+    font-size: 11px; font-family: ${C.mono}; text-decoration: none;
+    letter-spacing: 0.03em; transition: background 0.2s, border-color 0.2s, transform 0.15s;
   }
-  .chip-link:hover { background: rgba(110,231,183,0.2); border-color: rgba(110,231,183,0.5); }
+  .chip:hover { background: ${C.goldGlow}; border-color: ${C.gold}; transform: translateY(-1px); }
 
-  .verify-btn {
+  /* ── Verify button ── */
+  .verify {
     display: inline-flex; align-items: center; gap: 5px;
-    background: ${T.accentDim}; border: 1px solid ${T.borderHi};
-    color: ${T.accent}; padding: 6px 13px; border-radius: 8px;
-    font-size: 12px; font-weight: 600; font-family: ${T.sans};
-    text-decoration: none; transition: all 0.18s; white-space: nowrap;
+    background: ${C.goldDim}; border: 1px solid ${C.borderHi};
+    color: ${C.gold}; padding: 5px 12px; border-radius: 7px;
+    font-size: 11.5px; font-weight: 500; font-family: ${C.sans};
+    text-decoration: none; letter-spacing: 0.02em;
+    transition: background 0.18s, transform 0.15s; white-space: nowrap;
   }
-  .verify-btn:hover { background: rgba(110,231,183,0.22); transform: translateY(-1px); }
+  .verify:hover { background: ${C.goldGlow}; transform: translateY(-1px); }
 
-  .send-btn {
-    flex-shrink: 0; width: 42px; height: 42px; border-radius: 11px;
-    border: none; cursor: pointer; display: flex; align-items: center;
-    justify-content: center; transition: all 0.18s;
+  /* ── Send button ── */
+  .send {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.18s, transform 0.15s, opacity 0.18s;
   }
-  .send-btn.active { background: ${T.accent}; }
-  .send-btn.active:hover { background: #a7f3d0; transform: scale(1.06); }
-  .send-btn.active:active { transform: scale(0.96); }
-  .send-btn.disabled { background: ${T.surfaceHi}; cursor: not-allowed; }
+  .send.on  { background: ${C.gold}; }
+  .send.on:hover { background: #e8be7a; transform: scale(1.07); }
+  .send.on:active { transform: scale(0.95); }
+  .send.off { background: ${C.glassHi}; cursor: not-allowed; opacity: 0.5; }
 
-  .input-wrap {
+  /* ── Input wrapper ── */
+  .inp {
     display: flex; align-items: flex-end; gap: 10px;
-    background: ${T.surfaceHi}; border: 1px solid ${T.border};
-    border-radius: 14px; padding: 11px 12px; transition: border-color 0.2s;
+    background: ${C.glassHi}; border: 1px solid ${C.border};
+    border-radius: 14px; padding: 12px 14px;
+    transition: border-color 0.22s, box-shadow 0.22s;
   }
-  .input-wrap:focus-within { border-color: ${T.borderHi}; }
+  .inp:focus-within {
+    border-color: ${C.borderHi};
+    box-shadow: 0 0 0 3px ${C.goldDim};
+  }
 
-  .pill-tag {
-    font-size: 10.5px; font-family: ${T.mono}; color: ${T.textMut};
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 999px;
-    padding: 2px 9px; letter-spacing: 0.04em;
+  /* ── Pill ── */
+  .pill {
+    font-size: 10px; font-family: ${C.mono}; color: ${C.text3};
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 999px;
+    padding: 2px 9px; letter-spacing: 0.05em;
+  }
+
+  /* ── Section label ── */
+  .sec-label {
+    font-size: 9.5px; font-family: ${C.mono}; color: ${C.text3};
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;
   }
 `;
 
-/* ─────────────────────────────────────────
-   SUBCOMPONENTS
-───────────────────────────────────────── */
-const BotLogo = ({ size = 32 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-    <rect width="32" height="32" rx="9" fill="#0a1020"/>
-    <rect x="1" y="1" width="30" height="30" rx="8" stroke={T.accent} strokeOpacity="0.18"/>
-    <circle cx="11.5" cy="15" r="2.2" fill={T.accent}/>
-    <circle cx="20.5" cy="15" r="2.2" fill={T.accent}/>
-    <path d="M10 20.5c1.6 2 3.8 2.8 6 2.8s4.4-.8 6-2.8" stroke={T.accent} strokeWidth="1.6" strokeLinecap="round"/>
-    <rect x="14.5" y="5" width="3" height="3.5" rx="1" fill={T.accent} fillOpacity="0.5"/>
-    <line x1="16" y1="8.5" x2="16" y2="11" stroke={T.accent} strokeWidth="1.3" strokeLinecap="round"/>
+/* ═══════════════════════════════════════════
+   ATOMS
+═══════════════════════════════════════════ */
+const Logo = ({ s = 32 }) => (
+  <svg width={s} height={s} viewBox="0 0 34 34" fill="none">
+    <rect width="34" height="34" rx="10" fill="#0d1018"/>
+    <rect x="1" y="1" width="32" height="32" rx="9" stroke={C.gold} strokeOpacity="0.2" strokeWidth="1"/>
+    {/* antenna */}
+    <rect x="15.5" y="4.5" width="3" height="4" rx="1" fill={C.gold} fillOpacity="0.45"/>
+    <line x1="17" y1="8.5" x2="17" y2="11.5" stroke={C.gold} strokeOpacity="0.45" strokeWidth="1.3" strokeLinecap="round"/>
+    {/* face */}
+    <rect x="8" y="12" width="18" height="13" rx="4" fill="rgba(214,165,93,0.07)" stroke={C.gold} strokeOpacity="0.15" strokeWidth="1"/>
+    <circle cx="12.5" cy="18" r="2" fill={C.gold}/>
+    <circle cx="21.5" cy="18" r="2" fill={C.gold}/>
+    <path d="M11 22.5c1.5 1.8 3.5 2.5 6 2.5s4.5-.7 6-2.5" stroke={C.gold} strokeWidth="1.4" strokeLinecap="round"/>
   </svg>
 );
 
-const UserBadge = () => (
+const UserAvatar = () => (
   <div style={{
     width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-    background: "linear-gradient(135deg,#1d40ae,#3b82f6)",
+    background: "linear-gradient(145deg,#1a2e6b,#2a4fc0)",
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 12, fontWeight: 700, color: "#fff",
-    border: "1px solid rgba(59,130,246,0.3)",
-  }}>U</div>
+    fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.9)",
+    border: `1px solid ${C.userBorder}`,
+    letterSpacing: "0.05em",
+  }}>YOU</div>
 );
 
-const TypingDots = () => (
-  <div style={{ display: "flex", gap: 5, padding: "3px 2px" }}>
-    {[0, 1, 2].map(i => (
+const BotAvatar = () => (
+  <div style={{ flexShrink: 0, marginBottom: 2 }}>
+    <Logo s={30}/>
+  </div>
+);
+
+const Dots = () => (
+  <div style={{ display: "flex", gap: 5, padding: "4px 0" }}>
+    {[0,1,2].map(i => (
       <div key={i} style={{
-        width: 7, height: 7, borderRadius: "50%", background: T.accent,
-        animation: `blink 1.1s ease-in-out ${i * 0.18}s infinite`,
+        width: 6, height: 6, borderRadius: "50%", background: C.gold,
+        animation: `pulse-dot 1.2s ease-in-out ${i*0.2}s infinite`,
       }}/>
     ))}
   </div>
 );
 
-const SectionLabel = ({ children }) => (
-  <p style={{
-    fontSize: "10.5px", fontFamily: T.mono, color: T.textMut,
-    letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8,
-  }}>{children}</p>
-);
+const Hr = () => <div style={{ height: 1, background: C.border, margin: "13px 0" }}/>;
 
-const Divider = () => (
-  <div style={{ height: 1, background: T.border, margin: "12px 0" }}/>
-);
-
-const FileChip = ({ file, idx }) => (
-  <a key={idx} href={`http://127.0.0.1:5000/files/${file}`}
-    target="_blank" rel="noreferrer" className="chip-link">
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-      <path d="M2 1h5l3 3v6H2V1z" stroke={T.accent} strokeWidth="1" strokeLinejoin="round"/>
-      <path d="M7 1v3h3" stroke={T.accent} strokeWidth="1" strokeLinejoin="round"/>
+const FileChip = ({ file }) => (
+  <a href={`http://127.0.0.1:5000/files/${file}`} target="_blank" rel="noreferrer" className="chip">
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <path d="M1.5 1h4.5l2.5 2.5V9h-7V1z" stroke={C.gold} strokeWidth="0.9" strokeLinejoin="round"/>
+      <path d="M6 1v2.5h2.5" stroke={C.gold} strokeWidth="0.9" strokeLinejoin="round"/>
     </svg>
     {file}
   </a>
 );
 
-const OfficialLinkCard = ({ item }) => (
+const LinkCard = ({ item }) => (
   <div style={{
-    display: "flex", justifyContent: "space-between", alignItems: "center",
-    gap: 12, background: "rgba(255,255,255,0.025)", border: `1px solid ${T.border}`,
-    borderRadius: 10, padding: "11px 14px", marginBottom: 8,
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    gap: 12, background: "rgba(214,165,93,0.04)",
+    border: `1px solid rgba(214,165,93,0.12)`,
+    borderRadius: 9, padding: "10px 14px", marginBottom: 7,
   }}>
     <div style={{ minWidth: 0 }}>
-      <p style={{ color: T.textPri, fontSize: 13, fontWeight: 600, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <p style={{ color: C.text1, fontSize: 12.5, fontWeight: 500, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {item.filename}
       </p>
-      <p style={{ color: T.textSec, fontSize: 12, marginBottom: 2 }}>{item.subject}</p>
-      <p style={{ color: T.textMut, fontSize: 11, fontFamily: T.mono }}>{item.college}</p>
+      <p style={{ color: C.text2, fontSize: 11.5, marginBottom: 1 }}>{item.subject}</p>
+      <p style={{ color: C.text3, fontSize: 10.5, fontFamily: C.mono }}>{item.college}</p>
     </div>
-    <a href={item.link} target="_blank" rel="noreferrer" className="verify-btn">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <path d="M2 6h8M7 3l3 3-3 3" stroke={T.accent} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    <a href={item.link} target="_blank" rel="noreferrer" className="verify">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+        <path d="M1.5 5.5h8M6.5 2.5l3 3-3 3" stroke={C.gold} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
       Verify
     </a>
   </div>
 );
 
-const WelcomeScreen = () => (
+/* ═══════════════════════════════════════════
+   WELCOME
+═══════════════════════════════════════════ */
+const Welcome = () => (
   <div style={{
-    display: "flex", flexDirection: "column", alignItems: "center",
-    justifyContent: "center", height: "100%", gap: 28, padding: "0 24px",
+    height: "100%", display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    gap: 32, padding: "0 32px",
   }}>
+    {/* Logo lockup */}
     <div style={{ textAlign: "center" }}>
       <div style={{
-        width: 60, height: 60, borderRadius: 16, background: T.surface,
-        border: `1px solid ${T.borderHi}`, display: "flex", alignItems: "center",
-        justifyContent: "center", margin: "0 auto 18px",
-        boxShadow: "0 0 32px rgba(110,231,183,0.1)",
+        width: 66, height: 66, borderRadius: 18,
+        background: "rgba(214,165,93,0.06)",
+        border: `1px solid rgba(214,165,93,0.25)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        margin: "0 auto 20px",
+        animation: "glow-ring 3.5s ease-in-out infinite",
       }}>
-        <BotLogo size={38}/>
+        <Logo s={42}/>
       </div>
-      <h2 style={{ color: T.textPri, fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginBottom: 8 }}>
-        Ask CampusGPT
-      </h2>
-      <p style={{ color: T.textSec, fontSize: 14, lineHeight: 1.65, maxWidth: 340 }}>
-        Retrieve question papers, timetables, syllabus details, and academic notices instantly.
+
+      <h1 style={{
+        fontFamily: C.serif,
+        fontSize: 28,
+        fontWeight: 500,
+        letterSpacing: "-0.03em",
+        color: C.text1,
+        marginBottom: 10,
+        lineHeight: 1.1,
+      }}>
+        CampusGPT
+      </h1>
+
+      <p style={{
+        fontFamily: C.sans,
+        fontSize: 13.5,
+        fontWeight: 300,
+        color: C.text2,
+        lineHeight: 1.7,
+        maxWidth: 320,
+        letterSpacing: "0.01em",
+      }}>
+        Academic intelligence at your fingertips —<br/>
+        papers, timetables, syllabi &amp; notices.
       </p>
     </div>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, width: "100%", maxWidth: 440 }}>
-      {["Last year's question papers", "Upcoming exam timetable", "Semester syllabus outline", "Recent college notices"].map((s, i) => (
+
+    {/* Suggestion grid */}
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr",
+      gap: 8, width: "100%", maxWidth: 460,
+    }}>
+      {[
+        { icon: "📄", text: "Last year's question papers" },
+        { icon: "🗓", text: "Upcoming exam timetable" },
+        { icon: "📚", text: "Semester syllabus breakdown" },
+        { icon: "📣", text: "Recent college notices" },
+      ].map(({ icon, text }, i) => (
         <div key={i} style={{
-          background: T.surfaceHi, border: `1px solid ${T.border}`,
-          borderRadius: 10, padding: "10px 13px",
-          fontSize: 12.5, color: T.textSec, lineHeight: 1.5, cursor: "default",
-        }}>{s}</div>
+          background: C.glass,
+          border: `1px solid ${C.border}`,
+          borderRadius: 11,
+          padding: "11px 14px",
+          display: "flex", alignItems: "flex-start", gap: 9,
+          cursor: "default",
+          transition: "border-color 0.2s, background 0.2s",
+        }}>
+          <span style={{ fontSize: 14, lineHeight: 1.6 }}>{icon}</span>
+          <span style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.55, fontWeight: 300 }}>{text}</span>
+        </div>
       ))}
     </div>
+
+    <p style={{
+      fontSize: 10.5, fontFamily: C.mono, color: C.text3,
+      letterSpacing: "0.06em", textTransform: "uppercase",
+    }}>
+      Powered by RAG · Groq · ChromaDB
+    </p>
   </div>
 );
 
-/* ─────────────────────────────────────────
-   MAIN APP
-───────────────────────────────────────── */
+/* ═══════════════════════════════════════════
+   BUBBLE
+═══════════════════════════════════════════ */
+const Bubble = ({ msg }) => {
+  const isUser = msg.sender === "user";
+  return (
+    <div style={{
+      padding: "13px 17px",
+      borderRadius: isUser ? "17px 4px 17px 17px" : "4px 17px 17px 17px",
+      background: isUser ? C.userBubble : C.botBubble,
+      border: `1px solid ${isUser ? C.userBorder : C.border}`,
+      backdropFilter: "blur(12px)",
+      color: isUser ? "rgba(255,255,255,0.92)" : C.text2,
+      fontSize: 14,
+      lineHeight: 1.75,
+      fontWeight: 300,
+      letterSpacing: "0.01em",
+      boxShadow: isUser
+        ? "0 4px 24px rgba(20,40,140,0.18)"
+        : "0 2px 16px rgba(0,0,0,0.18)",
+    }}>
+      <p style={{ whiteSpace: "pre-wrap", fontWeight: isUser ? 400 : 300 }}>{msg.text}</p>
+
+      {!isUser && msg.sources?.length > 0 && (
+        <>
+          <Hr/>
+          <p className="sec-label">PDF Sources</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {msg.sources.map((f, i) => <FileChip key={i} file={f}/>)}
+          </div>
+        </>
+      )}
+
+      {!isUser && msg.links?.length > 0 && (
+        <>
+          <Hr/>
+          <p className="sec-label">Official Verification</p>
+          {msg.links.map((item, i) => <LinkCard key={i} item={item}/>)}
+        </>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════
+   APP
+═══════════════════════════════════════════ */
 export default function App() {
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
+  const [messages, setMessages]  = useState([]);
+  const [loading,  setLoading]   = useState(false);
+  const endRef      = useRef(null);
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!question.trim()) return;
-    const userQuestion = question;
-    setMessages(prev => [...prev, { sender: "user", text: userQuestion }]);
+    const q = question;
+    setMessages(p => [...p, { sender: "user", text: q }]);
     setQuestion("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setLoading(true);
-
     try {
-      const response = await axios.post("http://127.0.0.1:5000/chat", { question: userQuestion });
-      setMessages(prev => [...prev, {
+      const { data } = await axios.post("http://127.0.0.1:5000/chat", { question: q });
+      setMessages(p => [...p, {
         sender: "bot",
-        text: response.data.answer,
-        sources: response.data.sources || [],
-        links: response.data.links || [],
+        text: data.answer,
+        sources: data.sources || [],
+        links:   data.links   || [],
       }]);
-    } catch (error) {
-      console.log(error);
-      setMessages(prev => [...prev, {
-        sender: "bot", text: "Backend connection error", sources: [], links: [],
-      }]);
+    } catch {
+      setMessages(p => [...p, { sender: "bot", text: "Backend connection error", sources: [], links: [] }]);
     }
     setLoading(false);
   };
 
-  const handleKeyDown = (e) => {
+  const onKey = e => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const canSend = question.trim() && !loading;
+  const canSend = !!question.trim() && !loading;
 
   return (
     <>
-      <style>{GLOBAL_CSS}</style>
+      <style>{CSS}</style>
 
+      {/* Page shell */}
       <div style={{
-        minHeight: "100vh", background: T.bg,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+        minHeight: "100vh",
+        background: `radial-gradient(ellipse 80% 60% at 50% -10%, rgba(214,165,93,0.06) 0%, transparent 70%), ${C.bg}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
       }}>
+
+        {/* Chat card */}
         <div style={{
-          width: "100%", maxWidth: 860,
-          height: "calc(100vh - 40px)", maxHeight: 880,
+          width: "100%", maxWidth: 820,
+          height: "calc(100vh - 40px)", maxHeight: 900,
           display: "flex", flexDirection: "column",
-          background: T.surface, borderRadius: 22,
-          border: `1px solid ${T.border}`, overflow: "hidden",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.65)",
+          background: C.panel,
+          borderRadius: 24,
+          border: `1px solid ${C.border}`,
+          overflow: "hidden",
+          boxShadow: "0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(214,165,93,0.05)",
         }}>
 
-          {/* HEADER */}
+          {/* ── HEADER ── */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 13,
-            padding: "14px 22px", borderBottom: `1px solid ${T.border}`,
-            background: "rgba(255,255,255,0.015)", flexShrink: 0,
+            display: "flex", alignItems: "center", gap: 14,
+            padding: "15px 24px",
+            borderBottom: `1px solid ${C.border}`,
+            background: "rgba(255,255,255,0.018)",
+            flexShrink: 0,
           }}>
-            <BotLogo size={34}/>
+            <Logo s={36}/>
+
             <div style={{ flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: T.textPri, fontSize: 16, fontWeight: 600, letterSpacing: "-0.01em" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 2 }}>
+                <span style={{
+                  fontFamily: C.serif,
+                  fontSize: 17,
+                  fontWeight: 500,
+                  color: C.text1,
+                  letterSpacing: "-0.02em",
+                }}>
                   CampusGPT
                 </span>
+                {/* Live dot */}
                 <span style={{
-                  width: 7, height: 7, borderRadius: "50%",
-                  background: T.accent, boxShadow: `0 0 6px ${T.accent}`, display: "inline-block",
-                }}/>
+                  display: "flex", alignItems: "center", gap: 4,
+                  fontSize: 10, fontFamily: C.mono, color: "#4ade80",
+                  letterSpacing: "0.04em",
+                }}>
+                  <span style={{
+                    width: 5, height: 5, borderRadius: "50%",
+                    background: "#4ade80",
+                    boxShadow: "0 0 5px #4ade80",
+                    display: "inline-block",
+                  }}/>
+                  LIVE
+                </span>
               </div>
-              <p style={{ color: T.textMut, fontSize: 11.5, fontFamily: T.mono, letterSpacing: "0.04em" }}>
+              <p style={{
+                fontSize: 11, fontFamily: C.mono, color: C.text3,
+                letterSpacing: "0.05em",
+              }}>
                 Academic Retrieval System
               </p>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+
+            {/* Tags */}
+            <div style={{ display: "flex", gap: 5 }}>
               {["Papers", "Syllabus", "Notices"].map(t => (
-                <span key={t} className="pill-tag">{t}</span>
+                <span key={t} className="pill">{t}</span>
               ))}
             </div>
           </div>
 
-          {/* MESSAGES */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-            {messages.length === 0 ? <WelcomeScreen/> : (
+          {/* Thin gold accent line */}
+          <div style={{
+            height: "1.5px",
+            background: `linear-gradient(90deg, transparent 0%, ${C.gold} 30%, ${C.gold} 70%, transparent 100%)`,
+            opacity: 0.18,
+            flexShrink: 0,
+          }}/>
+
+          {/* ── MESSAGES ── */}
+          <div style={{
+            flex: 1, overflowY: "auto",
+            padding: "20px 22px",
+          }}>
+            {messages.length === 0 ? <Welcome/> : (
               <>
-                {messages.map((msg, index) => (
-                  <div key={index} className="msg" style={{
-                    display: "flex",
-                    justifyContent: msg.sender === "user" ? "flex-end" : "flex-start",
-                    alignItems: "flex-end", gap: 10, marginBottom: 14,
-                  }}>
-                    {msg.sender === "bot" && <div style={{ flexShrink: 0, marginBottom: 2 }}><BotLogo size={30}/></div>}
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={i % 2 === 0 ? "msg-in" : "msg-in-delay"}
+                    style={{
+                      display: "flex",
+                      justifyContent: msg.sender === "user" ? "flex-end" : "flex-start",
+                      alignItems: "flex-end",
+                      gap: 10, marginBottom: 16,
+                    }}
+                  >
+                    {msg.sender === "bot" && <BotAvatar/>}
 
                     <div style={{
-                      maxWidth: "76%", display: "flex", flexDirection: "column", gap: 4,
+                      maxWidth: "75%",
+                      display: "flex", flexDirection: "column",
+                      gap: 5,
                       alignItems: msg.sender === "user" ? "flex-end" : "flex-start",
                     }}>
                       <span style={{
-                        fontSize: 10.5, fontFamily: T.mono, color: T.textMut,
-                        letterSpacing: "0.04em",
-                        paddingLeft: msg.sender === "bot" ? 2 : 0,
-                        paddingRight: msg.sender === "user" ? 2 : 0,
+                        fontSize: 9.5, fontFamily: C.mono, color: C.text3,
+                        letterSpacing: "0.07em", textTransform: "uppercase",
+                        paddingLeft: msg.sender === "bot" ? 3 : 0,
+                        paddingRight: msg.sender === "user" ? 3 : 0,
                       }}>
-                        {msg.sender === "user" ? "YOU" : "CAMPUSGPT"}
+                        {msg.sender === "user" ? "You" : "CampusGPT"}
                       </span>
-
-                      <div style={{
-                        padding: "12px 16px",
-                        borderRadius: msg.sender === "user" ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
-                        background: msg.sender === "user"
-                          ? "linear-gradient(135deg,#1d40ae 0%,#2563eb 100%)"
-                          : T.surfaceHi,
-                        border: msg.sender === "user" ? "none" : `1px solid ${T.border}`,
-                        color: msg.sender === "user" ? "#fff" : T.textSec,
-                        fontSize: 14, lineHeight: 1.7,
-                      }}>
-                        <p style={{ whiteSpace: "pre-wrap" }}>{msg.text}</p>
-
-                        {msg.sender === "bot" && msg.sources?.length > 0 && (
-                          <>
-                            <Divider/>
-                            <SectionLabel>PDF Sources</SectionLabel>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                              {msg.sources.map((file, idx) => <FileChip key={idx} file={file} idx={idx}/>)}
-                            </div>
-                          </>
-                        )}
-
-                        {msg.sender === "bot" && msg.links?.length > 0 && (
-                          <>
-                            <Divider/>
-                            <SectionLabel>Official Verification Links</SectionLabel>
-                            {msg.links.map((item, idx) => <OfficialLinkCard key={idx} item={item}/>)}
-                          </>
-                        )}
-                      </div>
+                      <Bubble msg={msg}/>
                     </div>
 
-                    {msg.sender === "user" && <div style={{ flexShrink: 0, marginBottom: 2 }}><UserBadge/></div>}
+                    {msg.sender === "user" && <UserAvatar/>}
                   </div>
                 ))}
 
+                {/* Typing indicator */}
                 {loading && (
-                  <div className="msg" style={{ display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 14 }}>
-                    <BotLogo size={30}/>
-                    <div style={{
-                      padding: "10px 16px", borderRadius: "4px 16px 16px 16px",
-                      background: T.surfaceHi, border: `1px solid ${T.border}`,
-                    }}>
-                      <TypingDots/>
+                  <div className="msg-in" style={{
+                    display: "flex", alignItems: "flex-end", gap: 10, marginBottom: 16,
+                  }}>
+                    <BotAvatar/>
+                    <div>
+                      <span style={{ fontSize: 9.5, fontFamily: C.mono, color: C.text3, letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, paddingLeft: 3 }}>
+                        CampusGPT
+                      </span>
+                      <div style={{
+                        padding: "11px 16px",
+                        borderRadius: "4px 16px 16px 16px",
+                        background: C.botBubble,
+                        border: `1px solid ${C.border}`,
+                        backdropFilter: "blur(12px)",
+                      }}>
+                        <Dots/>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div ref={messagesEndRef}/>
+                <div ref={endRef}/>
               </>
             )}
           </div>
 
-          {/* INPUT */}
+          {/* Separator */}
+          <div style={{ height: 1, background: C.border, flexShrink: 0 }}/>
+
+          {/* ── INPUT ── */}
           <div style={{
-            padding: "12px 18px 16px", borderTop: `1px solid ${T.border}`,
-            background: "rgba(255,255,255,0.015)", flexShrink: 0,
+            padding: "14px 20px 18px",
+            background: "rgba(255,255,255,0.012)",
+            flexShrink: 0,
           }}>
-            <div className="input-wrap">
+            <div className="inp">
               <textarea
                 ref={textareaRef}
                 rows={1}
-                placeholder="Ask about papers, syllabus, timetables, notices…"
+                placeholder="Ask about papers, timetables, syllabus, notices…"
                 value={question}
                 onChange={e => {
                   setQuestion(e.target.value);
                   e.target.style.height = "auto";
-                  e.target.style.height = Math.min(e.target.scrollHeight, 130) + "px";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
                 }}
-                onKeyDown={handleKeyDown}
+                onKeyDown={onKey}
               />
-              <button className={`send-btn ${canSend ? "active" : "disabled"}`} onClick={sendMessage} disabled={!canSend}>
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <path d="M2.5 9L15.5 2L10.5 9L15.5 16L2.5 9Z" fill={canSend ? T.surface : T.textMut}/>
+              <button
+                className={`send ${canSend ? "on" : "off"}`}
+                onClick={sendMessage}
+                disabled={!canSend}
+              >
+                <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                  <path
+                    d="M2 8.5L15 2L10 8.5L15 15L2 8.5Z"
+                    fill={canSend ? C.bg : C.text3}
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
             </div>
+
             <p style={{
-              textAlign: "center", fontSize: 11, fontFamily: T.mono,
-              color: T.textMut, marginTop: 9, letterSpacing: "0.03em",
+              textAlign: "center", marginTop: 9,
+              fontSize: 10.5, fontFamily: C.mono, color: C.text3,
+              letterSpacing: "0.04em",
             }}>
-              Enter to send · Shift+Enter for new line
+              ↵ send · shift+↵ newline
             </p>
           </div>
 
